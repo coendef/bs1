@@ -1,0 +1,7 @@
+{
+  "name": "Wijze Lessen: Bouwsteen 1 Master",
+  "description": "Een interactieve en speelse app om de inhoud van Bouwsteen 1 (Voorkennis) uit het boek Wijze Lessen te oefenen door middel van quizzen, matching games en AI-gestuurde feedback.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
