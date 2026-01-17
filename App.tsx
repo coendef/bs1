@@ -41,8 +41,22 @@ const App: React.FC = () => {
 
   const handleQuizAnswer = (optionIndex: number) => {
     if (quizState.showFeedback) return;
-    
-    const isCorrect = optionIndex === QUESTIONS[quizState.currentQuestionIndex].correctAnswer;
+
+    // Validate current question index is within bounds
+    if (quizState.currentQuestionIndex < 0 || quizState.currentQuestionIndex >= QUESTIONS.length) {
+      console.error('Invalid question index:', quizState.currentQuestionIndex);
+      return;
+    }
+
+    const currentQuestion = QUESTIONS[quizState.currentQuestionIndex];
+
+    // Validate option index is within bounds
+    if (optionIndex < 0 || optionIndex >= currentQuestion.options.length) {
+      console.error('Invalid option index:', optionIndex);
+      return;
+    }
+
+    const isCorrect = optionIndex === currentQuestion.correctAnswer;
     setQuizState(prev => ({
       ...prev,
       selectedOption: optionIndex,
@@ -52,6 +66,12 @@ const App: React.FC = () => {
   };
 
   const nextQuestion = () => {
+    // Validate current question index
+    if (quizState.currentQuestionIndex < 0 || quizState.currentQuestionIndex >= QUESTIONS.length) {
+      console.error('Invalid question index in nextQuestion:', quizState.currentQuestionIndex);
+      return;
+    }
+
     if (quizState.currentQuestionIndex < QUESTIONS.length - 1) {
       setQuizState(prev => ({
         ...prev,
@@ -61,18 +81,27 @@ const App: React.FC = () => {
       }));
     } else {
       setQuizState(prev => ({ ...prev, isFinished: true }));
-      generateAiSummary();
+      // Call generateAiSummary but don't await it (fire and forget with error handling)
+      generateAiSummary().catch(error => {
+        console.error('Failed to generate AI summary:', error);
+      });
     }
   };
 
   const generateAiSummary = async () => {
-    setLoadingAi(true);
-    const feedback = await getAIFeedback(
-      `${quizState.score}/${QUESTIONS.length} op de quiz`,
-      "Algemene beheersing van Bouwsteen 1"
-    );
-    setAiMessage(feedback || "");
-    setLoadingAi(false);
+    try {
+      setLoadingAi(true);
+      const feedback = await getAIFeedback(
+        `${quizState.score}/${QUESTIONS.length} op de quiz`,
+        "Algemene beheersing van Bouwsteen 1"
+      );
+      setAiMessage(feedback || "Er kon geen feedback worden gegenereerd.");
+    } catch (error) {
+      console.error('Error generating AI summary:', error);
+      setAiMessage('Er is een fout opgetreden bij het laden van AI feedback. Probeer het later opnieuw.');
+    } finally {
+      setLoadingAi(false);
+    }
   };
 
   const resetQuiz = () => {
@@ -87,9 +116,19 @@ const App: React.FC = () => {
   };
 
   const handleMatch = (type: string, desc: string) => {
+    // Validate input parameters
+    if (!type || !desc) {
+      console.error('Invalid match parameters:', { type, desc });
+      return;
+    }
+
     const item = ORGANIZERS.find(o => o.type === type && o.description === desc);
     if (item) {
       setMatchingItems(prev => prev.map(i => i.id === item.id ? { ...i, matched: true } : i));
+      setSelectedType(null);
+    } else {
+      console.warn('No matching organizer found for:', { type, desc });
+      // Reset selected type so user can try again
       setSelectedType(null);
     }
   };
@@ -186,21 +225,24 @@ const App: React.FC = () => {
 
         {mode === GameMode.QUIZ && !quizState.isFinished && (
           <div className="max-w-2xl mx-auto space-y-6 py-4 animate-in slide-in-from-bottom-4 duration-300">
-            <div className="flex justify-between items-center mb-8">
-              <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
-                Vraag {quizState.currentQuestionIndex + 1} van {QUESTIONS.length}
-              </span>
-              <div className="h-2 w-32 bg-slate-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-500 transition-all duration-300" 
-                  style={{ width: `${((quizState.currentQuestionIndex + 1) / QUESTIONS.length) * 100}%` }}
-                />
-              </div>
-            </div>
+            {/* Safety check: ensure valid question index */}
+            {quizState.currentQuestionIndex >= 0 && quizState.currentQuestionIndex < QUESTIONS.length ? (
+              <>
+                <div className="flex justify-between items-center mb-8">
+                  <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
+                    Vraag {quizState.currentQuestionIndex + 1} van {QUESTIONS.length}
+                  </span>
+                  <div className="h-2 w-32 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 transition-all duration-300"
+                      style={{ width: `${((quizState.currentQuestionIndex + 1) / QUESTIONS.length) * 100}%` }}
+                    />
+                  </div>
+                </div>
 
-            <h3 className="text-2xl font-bold leading-tight">
-              {QUESTIONS[quizState.currentQuestionIndex].text}
-            </h3>
+                <h3 className="text-2xl font-bold leading-tight">
+                  {QUESTIONS[quizState.currentQuestionIndex].text}
+                </h3>
 
             <div className="space-y-3">
               {QUESTIONS[quizState.currentQuestionIndex].options.map((option, idx) => {
@@ -247,6 +289,18 @@ const App: React.FC = () => {
                 >
                   {quizState.currentQuestionIndex < QUESTIONS.length - 1 ? "Volgende vraag" : "Bekijk resultaat"}
                   <ChevronRight size={20} />
+                </button>
+              </div>
+            )}
+              </>
+            ) : (
+              <div className="max-w-md mx-auto py-12 text-center space-y-4">
+                <p className="text-red-600 font-semibold">Er is een fout opgetreden met de quiz.</p>
+                <button
+                  onClick={resetQuiz}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition"
+                >
+                  Quiz opnieuw starten
                 </button>
               </div>
             )}
@@ -483,10 +537,17 @@ const AiTutorScreen: React.FC = () => {
   const handleAsk = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
-    setLoading(true);
-    const result = await askTutor(query);
-    setAnswer(result);
-    setLoading(false);
+
+    try {
+      setLoading(true);
+      const result = await askTutor(query);
+      setAnswer(result || "Er kon geen antwoord worden gegenereerd.");
+    } catch (error) {
+      console.error('Error asking AI tutor:', error);
+      setAnswer('Er is een fout opgetreden bij het verwerken van je vraag. Probeer het later opnieuw.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
