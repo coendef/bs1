@@ -1,5 +1,5 @@
 
-import { Question, OrganizerMatch } from './types';
+import { Question, OrganizerMatch, ReflectionQuestion, ReflectionPhase } from './types';
 
 export const QUESTIONS: Question[] = [
   {
@@ -70,3 +70,66 @@ export const ORGANIZERS: OrganizerMatch[] = [
   { id: '3', type: "Narratief", description: "De klas wordt 'opgewarmd' met een passend verhaal of een filmpje." },
   { id: '4', type: "Vergelijkend", description: "Vergelijkt de nieuwe leerstof met wat de leerling al weet." }
 ];
+
+// Korthagen Reflectiecyclus - Vragen per fase
+export const REFLECTION_QUESTIONS: ReflectionQuestion[] = [
+  {
+    phase: ReflectionPhase.HANDELEN,
+    question: "Beschrijf een concrete situatie uit je les of praktijk",
+    placeholder: "Bijvoorbeeld: Vandaag gaf ik een les over breuken. Ik begon met een advance organizer door...",
+    helpText: "Kies een specifieke ervaring die je wilt onderzoeken. Dit kan iets zijn dat goed ging, of juist iets waar je mee worstelde."
+  },
+  {
+    phase: ReflectionPhase.TERUGBLIKKEN,
+    question: "Wat gebeurde er precies? Wat deed jij? Wat deden de leerlingen?",
+    placeholder: "De leerlingen reageerden door... Ik merkte dat... Het effect was...",
+    helpText: "Probeer zo feitelijk mogelijk te beschrijven wat er gebeurde, zonder direct te oordelen."
+  },
+  {
+    phase: ReflectionPhase.BEWUSTWORDING,
+    question: "Wat dacht je op dat moment? Wat voelde je? Wat waren de essentiële aspecten?",
+    placeholder: "Ik dacht op dat moment... Ik voelde me... Het essentiële aspect was...",
+    helpText: "Sta stil bij je gedachten en gevoelens. Wat maakte deze situatie belangrijk of leerzaam?"
+  },
+  {
+    phase: ReflectionPhase.ALTERNATIEVEN,
+    question: "Welke alternatieven zie je? Wat zou je anders kunnen doen?",
+    placeholder: "Ik zou ook kunnen... Een andere aanpak zou zijn... Op basis van Bouwsteen 1 zou ik...",
+    helpText: "Bedenk concrete alternatieven. Denk aan wat je hebt geleerd over voorkennis activeren en advance organizers."
+  },
+  {
+    phase: ReflectionPhase.UITPROBEREN,
+    question: "Wat ga je de volgende keer uitproberen? Maak een concreet plan.",
+    placeholder: "De volgende les ga ik... Mijn doel is... Ik wil bereiken dat...",
+    helpText: "Maak je voornemen zo concreet mogelijk: wat, wanneer, hoe? Dit maakt het makkelijker om het ook echt te doen."
+  }
+];
+
+// Fase metadata voor UI
+export const REFLECTION_PHASE_INFO: Record<ReflectionPhase, { title: string; icon: string; color: string }> = {
+  [ReflectionPhase.HANDELEN]: {
+    title: "Handelen",
+    icon: "play",
+    color: "blue"
+  },
+  [ReflectionPhase.TERUGBLIKKEN]: {
+    title: "Terugblikken",
+    icon: "eye",
+    color: "purple"
+  },
+  [ReflectionPhase.BEWUSTWORDING]: {
+    title: "Bewustwording",
+    icon: "lightbulb",
+    color: "amber"
+  },
+  [ReflectionPhase.ALTERNATIEVEN]: {
+    title: "Alternatieven",
+    icon: "shuffle",
+    color: "emerald"
+  },
+  [ReflectionPhase.UITPROBEREN]: {
+    title: "Uitproberen",
+    icon: "rocket",
+    color: "rose"
+  }
+};

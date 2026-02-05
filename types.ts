@@ -4,7 +4,30 @@ export enum GameMode {
   QUIZ = 'QUIZ',
   MATCHING = 'MATCHING',
   SUMMARY = 'SUMMARY',
-  AI_TUTOR = 'AI_TUTOR'
+  AI_TUTOR = 'AI_TUTOR',
+  REFLECTION = 'REFLECTION'
+}
+
+// Korthagen Reflectiecyclus
+export enum ReflectionPhase {
+  HANDELEN = 'HANDELEN',           // 1. Ervaring/Actie
+  TERUGBLIKKEN = 'TERUGBLIKKEN',   // 2. Terugkijken
+  BEWUSTWORDING = 'BEWUSTWORDING', // 3. Bewustwording essentiële aspecten
+  ALTERNATIEVEN = 'ALTERNATIEVEN', // 4. Alternatieven ontwikkelen
+  UITPROBEREN = 'UITPROBEREN'      // 5. Uitproberen
+}
+
+export interface ReflectionQuestion {
+  phase: ReflectionPhase;
+  question: string;
+  placeholder: string;
+  helpText?: string;
+}
+
+export interface ReflectionState {
+  currentPhaseIndex: number;
+  answers: Record<ReflectionPhase, string>;
+  isComplete: boolean;
 }
 
 export interface Question {

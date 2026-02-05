@@ -1,20 +1,28 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { GameMode, QuizState } from './types';
-import { QUESTIONS, ORGANIZERS } from './constants';
+import React, { useState, useCallback } from 'react';
+import { GameMode, QuizState, ReflectionState, ReflectionPhase } from './types';
+import { QUESTIONS, ORGANIZERS, REFLECTION_QUESTIONS, REFLECTION_PHASE_INFO } from './constants';
 import { getAIFeedback, askTutor } from './services/geminiService';
-import { 
-  BookOpen, 
-  BrainCircuit, 
-  CheckCircle2, 
-  ChevronRight, 
-  Home, 
-  Lightbulb, 
-  RotateCcw, 
-  Trophy, 
+import {
+  BookOpen,
+  BrainCircuit,
+  CheckCircle2,
+  ChevronRight,
+  ChevronLeft,
+  Home,
+  Lightbulb,
+  RotateCcw,
+  Trophy,
   HelpCircle,
   MessageSquare,
-  LayoutGrid
+  LayoutGrid,
+  RefreshCw,
+  Play,
+  Eye,
+  Shuffle,
+  Rocket,
+  Download,
+  Sparkles
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -31,6 +39,19 @@ const App: React.FC = () => {
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [aiMessage, setAiMessage] = useState<string>("");
   const [loadingAi, setLoadingAi] = useState(false);
+
+  // Reflectie state (Korthagen cyclus)
+  const [reflectionState, setReflectionState] = useState<ReflectionState>({
+    currentPhaseIndex: 0,
+    answers: {
+      [ReflectionPhase.HANDELEN]: '',
+      [ReflectionPhase.TERUGBLIKKEN]: '',
+      [ReflectionPhase.BEWUSTWORDING]: '',
+      [ReflectionPhase.ALTERNATIEVEN]: '',
+      [ReflectionPhase.UITPROBEREN]: ''
+    },
+    isComplete: false
+  });
 
   // Initialize matching game
   const initMatching = useCallback(() => {
@@ -94,6 +115,49 @@ const App: React.FC = () => {
     }
   };
 
+  // Reflectie functies
+  const resetReflection = () => {
+    setReflectionState({
+      currentPhaseIndex: 0,
+      answers: {
+        [ReflectionPhase.HANDELEN]: '',
+        [ReflectionPhase.TERUGBLIKKEN]: '',
+        [ReflectionPhase.BEWUSTWORDING]: '',
+        [ReflectionPhase.ALTERNATIEVEN]: '',
+        [ReflectionPhase.UITPROBEREN]: ''
+      },
+      isComplete: false
+    });
+    setMode(GameMode.REFLECTION);
+  };
+
+  const updateReflectionAnswer = (phase: ReflectionPhase, answer: string) => {
+    setReflectionState(prev => ({
+      ...prev,
+      answers: { ...prev.answers, [phase]: answer }
+    }));
+  };
+
+  const nextReflectionPhase = () => {
+    if (reflectionState.currentPhaseIndex < REFLECTION_QUESTIONS.length - 1) {
+      setReflectionState(prev => ({
+        ...prev,
+        currentPhaseIndex: prev.currentPhaseIndex + 1
+      }));
+    } else {
+      setReflectionState(prev => ({ ...prev, isComplete: true }));
+    }
+  };
+
+  const prevReflectionPhase = () => {
+    if (reflectionState.currentPhaseIndex > 0) {
+      setReflectionState(prev => ({
+        ...prev,
+        currentPhaseIndex: prev.currentPhaseIndex - 1
+      }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Header */}
@@ -106,21 +170,28 @@ const App: React.FC = () => {
             <h1 className="font-bold text-xl tracking-tight hidden sm:block">Bouwsteen 1 Master</h1>
           </div>
           <nav className="flex items-center gap-1 sm:gap-4">
-            <button 
+            <button
+              onClick={() => setMode(GameMode.REFLECTION)}
+              className={`p-2 rounded-md transition ${mode === GameMode.REFLECTION ? 'bg-amber-50 text-amber-700' : 'hover:bg-slate-100 text-slate-600'}`}
+              title="Reflectie"
+            >
+              <RefreshCw size={20} />
+            </button>
+            <button
               onClick={() => setMode(GameMode.SUMMARY)}
               className={`p-2 rounded-md transition ${mode === GameMode.SUMMARY ? 'bg-amber-50 text-amber-700' : 'hover:bg-slate-100 text-slate-600'}`}
               title="Samenvatting"
             >
               <BookOpen size={20} />
             </button>
-            <button 
+            <button
               onClick={() => setMode(GameMode.AI_TUTOR)}
               className={`p-2 rounded-md transition ${mode === GameMode.AI_TUTOR ? 'bg-amber-50 text-amber-700' : 'hover:bg-slate-100 text-slate-600'}`}
               title="AI Tutor"
             >
               <MessageSquare size={20} />
             </button>
-            <button 
+            <button
               onClick={() => setMode(GameMode.HOME)}
               className={`p-2 rounded-md transition ${mode === GameMode.HOME ? 'bg-amber-50 text-amber-700' : 'hover:bg-slate-100 text-slate-600'}`}
               title="Home"
@@ -164,12 +235,19 @@ const App: React.FC = () => {
                 onClick={() => setMode(GameMode.SUMMARY)}
                 color="border-amber-200 hover:bg-amber-50"
               />
-              <Card 
+              <Card
                 icon={<MessageSquare className="text-emerald-500" />}
                 title="Vraag de AI Tutor"
                 description="Heb je een specifieke vraag over misconcepties of de spiraalaanpak?"
                 onClick={() => setMode(GameMode.AI_TUTOR)}
                 color="border-emerald-200 hover:bg-emerald-50"
+              />
+              <Card
+                icon={<RefreshCw className="text-rose-500" />}
+                title="Reflectie (Korthagen)"
+                description="Doorloop de reflectiecyclus om je lespraktijk te verbeteren. Van ervaring naar actie."
+                onClick={resetReflection}
+                color="border-rose-200 hover:bg-rose-50"
               />
             </div>
 
@@ -443,6 +521,17 @@ const App: React.FC = () => {
         {mode === GameMode.AI_TUTOR && (
           <AiTutorScreen />
         )}
+
+        {mode === GameMode.REFLECTION && (
+          <ReflectionScreen
+            state={reflectionState}
+            onUpdateAnswer={updateReflectionAnswer}
+            onNext={nextReflectionPhase}
+            onPrev={prevReflectionPhase}
+            onReset={resetReflection}
+            onGoHome={() => setMode(GameMode.HOME)}
+          />
+        )}
       </main>
 
       {/* Footer */}
@@ -497,14 +586,14 @@ const AiTutorScreen: React.FC = () => {
       </div>
 
       <form onSubmit={handleAsk} className="relative group">
-        <input 
-          type="text" 
+        <input
+          type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Stel een vraag (bijv. 'Wat is een narratieve organizer?')"
           className="w-full p-5 pr-16 rounded-2xl border-2 border-slate-200 focus:border-emerald-500 outline-none transition-all shadow-sm"
         />
-        <button 
+        <button
           type="submit"
           disabled={loading || !query.trim()}
           className="absolute right-3 top-1/2 -translate-y-1/2 bg-emerald-600 text-white p-3 rounded-xl disabled:bg-slate-300 transition-colors"
@@ -536,18 +625,288 @@ const AiTutorScreen: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <button 
+        <button
           onClick={() => setQuery("Hoe werkt de boom-misconceptie?")}
           className="p-3 text-sm text-left border rounded-xl hover:bg-slate-50 transition"
         >
           "Hoe werkt de boom-misconceptie?"
         </button>
-        <button 
+        <button
           onClick={() => setQuery("Wat is de spiraalaanpak?")}
           className="p-3 text-sm text-left border rounded-xl hover:bg-slate-50 transition"
         >
           "Wat is de spiraalaanpak?"
         </button>
+      </div>
+    </div>
+  );
+};
+
+// Korthagen Reflectiecyclus Component
+interface ReflectionScreenProps {
+  state: ReflectionState;
+  onUpdateAnswer: (phase: ReflectionPhase, answer: string) => void;
+  onNext: () => void;
+  onPrev: () => void;
+  onReset: () => void;
+  onGoHome: () => void;
+}
+
+const ReflectionScreen: React.FC<ReflectionScreenProps> = ({
+  state,
+  onUpdateAnswer,
+  onNext,
+  onPrev,
+  onReset,
+  onGoHome
+}) => {
+  const phases = Object.values(ReflectionPhase);
+  const currentQuestion = REFLECTION_QUESTIONS[state.currentPhaseIndex];
+  const currentPhase = currentQuestion.phase;
+  const phaseInfo = REFLECTION_PHASE_INFO[currentPhase];
+
+  const getPhaseIcon = (phase: ReflectionPhase) => {
+    const icons: Record<ReflectionPhase, React.ReactNode> = {
+      [ReflectionPhase.HANDELEN]: <Play size={20} />,
+      [ReflectionPhase.TERUGBLIKKEN]: <Eye size={20} />,
+      [ReflectionPhase.BEWUSTWORDING]: <Lightbulb size={20} />,
+      [ReflectionPhase.ALTERNATIEVEN]: <Shuffle size={20} />,
+      [ReflectionPhase.UITPROBEREN]: <Rocket size={20} />
+    };
+    return icons[phase];
+  };
+
+  const getPhaseColor = (phase: ReflectionPhase, isActive: boolean, isCompleted: boolean) => {
+    const colors: Record<ReflectionPhase, { bg: string; border: string; text: string }> = {
+      [ReflectionPhase.HANDELEN]: { bg: 'bg-blue-500', border: 'border-blue-500', text: 'text-blue-600' },
+      [ReflectionPhase.TERUGBLIKKEN]: { bg: 'bg-purple-500', border: 'border-purple-500', text: 'text-purple-600' },
+      [ReflectionPhase.BEWUSTWORDING]: { bg: 'bg-amber-500', border: 'border-amber-500', text: 'text-amber-600' },
+      [ReflectionPhase.ALTERNATIEVEN]: { bg: 'bg-emerald-500', border: 'border-emerald-500', text: 'text-emerald-600' },
+      [ReflectionPhase.UITPROBEREN]: { bg: 'bg-rose-500', border: 'border-rose-500', text: 'text-rose-600' }
+    };
+    if (isActive) return colors[phase];
+    if (isCompleted) return { bg: 'bg-slate-400', border: 'border-slate-400', text: 'text-slate-500' };
+    return { bg: 'bg-slate-200', border: 'border-slate-200', text: 'text-slate-400' };
+  };
+
+  const canProceed = state.answers[currentPhase].trim().length > 10;
+
+  // Reflectie is voltooid
+  if (state.isComplete) {
+    return (
+      <div className="max-w-3xl mx-auto py-8 space-y-8 animate-in fade-in duration-500">
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg">
+            <Sparkles size={40} />
+          </div>
+          <h2 className="text-3xl font-extrabold text-slate-800">Reflectie Voltooid!</h2>
+          <p className="text-slate-600 max-w-lg mx-auto">
+            Je hebt de volledige Korthagen-cyclus doorlopen. Hieronder vind je een overzicht van je reflectie.
+          </p>
+        </div>
+
+        {/* Overzicht van alle antwoorden */}
+        <div className="bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-slate-800 to-slate-700 p-6 text-white">
+            <h3 className="font-bold text-xl flex items-center gap-2">
+              <RefreshCw size={24} /> Jouw Reflectiecyclus
+            </h3>
+            <p className="text-slate-300 text-sm mt-1">De 5 fasen van Korthagen</p>
+          </div>
+
+          <div className="divide-y divide-slate-100">
+            {REFLECTION_QUESTIONS.map((q, idx) => {
+              const phase = q.phase;
+              const info = REFLECTION_PHASE_INFO[phase];
+              const answer = state.answers[phase];
+              const colorClass = getPhaseColor(phase, true, false);
+
+              return (
+                <div key={phase} className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-xl ${colorClass.bg} text-white shrink-0`}>
+                      {getPhaseIcon(phase)}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Fase {idx + 1}</span>
+                        <h4 className={`font-bold ${colorClass.text}`}>{info.title}</h4>
+                      </div>
+                      <p className="text-sm text-slate-500 italic">{q.question}</p>
+                      <div className="bg-slate-50 p-4 rounded-xl mt-2">
+                        <p className="text-slate-700 whitespace-pre-wrap">{answer || <span className="text-slate-400 italic">Niet ingevuld</span>}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Acties */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <button
+            onClick={onReset}
+            className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl transition"
+          >
+            <RotateCcw size={20} /> Nieuwe Reflectie
+          </button>
+          <button
+            onClick={onGoHome}
+            className="flex items-center justify-center gap-2 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition shadow-lg"
+          >
+            <Home size={20} /> Terug naar Home
+          </button>
+        </div>
+
+        {/* Tip */}
+        <div className="bg-amber-50 p-6 rounded-2xl border border-amber-200">
+          <h4 className="font-bold text-amber-800 flex items-center gap-2 mb-2">
+            <Lightbulb size={18} /> Tip voor de praktijk
+          </h4>
+          <p className="text-amber-700 text-sm">
+            Probeer regelmatig te reflecteren met deze cyclus. Door je ervaringen systematisch te analyseren, ontwikkel je je als docent en worden je lessen steeds effectiever.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Actieve reflectiefase
+  return (
+    <div className="max-w-3xl mx-auto py-4 space-y-6 animate-in fade-in duration-300">
+      {/* Header met cyclus uitleg */}
+      <div className="text-center space-y-2">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800">Reflectiecyclus van Korthagen</h2>
+        <p className="text-slate-600 text-sm sm:text-base">Doorloop de 5 fasen om je lespraktijk te verbeteren</p>
+      </div>
+
+      {/* Visuele cyclus indicator */}
+      <div className="flex justify-center items-center gap-1 sm:gap-2 py-4">
+        {phases.map((phase, idx) => {
+          const isActive = idx === state.currentPhaseIndex;
+          const isCompleted = idx < state.currentPhaseIndex;
+          const colors = getPhaseColor(phase, isActive, isCompleted);
+          const info = REFLECTION_PHASE_INFO[phase];
+
+          return (
+            <React.Fragment key={phase}>
+              <div className="flex flex-col items-center">
+                <div
+                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                    isActive
+                      ? `${colors.bg} text-white ring-4 ring-offset-2 ${colors.border} ring-opacity-30 scale-110`
+                      : isCompleted
+                        ? 'bg-slate-400 text-white'
+                        : 'bg-slate-200 text-slate-400'
+                  }`}
+                >
+                  {isCompleted ? <CheckCircle2 size={20} /> : getPhaseIcon(phase)}
+                </div>
+                <span className={`text-[10px] sm:text-xs mt-1 font-medium ${isActive ? colors.text : 'text-slate-400'}`}>
+                  {info.title}
+                </span>
+              </div>
+              {idx < phases.length - 1 && (
+                <div className={`w-4 sm:w-8 h-1 rounded-full transition-colors ${idx < state.currentPhaseIndex ? 'bg-slate-400' : 'bg-slate-200'}`} />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+
+      {/* Huidige fase content */}
+      <div className="bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden">
+        {/* Fase header */}
+        <div className={`p-6 text-white bg-gradient-to-r ${
+          currentPhase === ReflectionPhase.HANDELEN ? 'from-blue-500 to-blue-600' :
+          currentPhase === ReflectionPhase.TERUGBLIKKEN ? 'from-purple-500 to-purple-600' :
+          currentPhase === ReflectionPhase.BEWUSTWORDING ? 'from-amber-500 to-amber-600' :
+          currentPhase === ReflectionPhase.ALTERNATIEVEN ? 'from-emerald-500 to-emerald-600' :
+          'from-rose-500 to-rose-600'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-white/20 rounded-xl">
+              {getPhaseIcon(currentPhase)}
+            </div>
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider opacity-80">Fase {state.currentPhaseIndex + 1} van 5</span>
+              <h3 className="text-xl sm:text-2xl font-bold">{phaseInfo.title}</h3>
+            </div>
+          </div>
+        </div>
+
+        {/* Vraag en invoer */}
+        <div className="p-6 space-y-4">
+          <div>
+            <h4 className="text-lg font-bold text-slate-800 mb-2">{currentQuestion.question}</h4>
+            {currentQuestion.helpText && (
+              <p className="text-sm text-slate-500 bg-slate-50 p-3 rounded-lg border-l-4 border-slate-300">
+                {currentQuestion.helpText}
+              </p>
+            )}
+          </div>
+
+          <textarea
+            value={state.answers[currentPhase]}
+            onChange={(e) => onUpdateAnswer(currentPhase, e.target.value)}
+            placeholder={currentQuestion.placeholder}
+            rows={6}
+            className="w-full p-4 rounded-xl border-2 border-slate-200 focus:border-blue-400 outline-none transition-all resize-none text-slate-700 placeholder:text-slate-400"
+          />
+
+          <div className="flex items-center justify-between text-sm">
+            <span className={`${state.answers[currentPhase].length > 10 ? 'text-emerald-600' : 'text-slate-400'}`}>
+              {state.answers[currentPhase].length} karakters
+              {state.answers[currentPhase].length <= 10 && ' (minimaal 10)'}
+            </span>
+          </div>
+        </div>
+
+        {/* Navigatie */}
+        <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
+          <button
+            onClick={onPrev}
+            disabled={state.currentPhaseIndex === 0}
+            className="flex items-center gap-2 px-4 py-3 rounded-xl font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-200 text-slate-600"
+          >
+            <ChevronLeft size={20} /> Vorige
+          </button>
+
+          <button
+            onClick={onNext}
+            disabled={!canProceed}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition shadow-md disabled:opacity-40 disabled:cursor-not-allowed ${
+              canProceed
+                ? 'bg-slate-800 hover:bg-slate-900 text-white'
+                : 'bg-slate-300 text-slate-500'
+            }`}
+          >
+            {state.currentPhaseIndex < REFLECTION_QUESTIONS.length - 1 ? (
+              <>Volgende <ChevronRight size={20} /></>
+            ) : (
+              <>Afronden <CheckCircle2 size={20} /></>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Korthagen uitleg */}
+      <div className="bg-slate-800 text-white p-6 rounded-2xl">
+        <div className="flex items-start gap-4">
+          <div className="p-2 bg-white/10 rounded-lg shrink-0">
+            <BrainCircuit size={24} />
+          </div>
+          <div>
+            <h4 className="font-bold mb-1">De ALACT-cyclus van Korthagen</h4>
+            <p className="text-slate-300 text-sm leading-relaxed">
+              Fred Korthagen ontwikkelde dit reflectiemodel om docenten te helpen systematisch te leren van hun ervaringen.
+              De naam ALACT staat voor: <strong>A</strong>ction, <strong>L</strong>ooking back, <strong>A</strong>wareness,
+              <strong>C</strong>reating alternatives, <strong>T</strong>rial.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
